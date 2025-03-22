@@ -3,7 +3,7 @@
 A web application that encodes files into DNA sequences and decodes them back, with optional password encryption.
 
 ## Version
-Current version: 1.0.0
+Current version: 1.0.2
 
 ## Features
 
@@ -13,6 +13,10 @@ Current version: 1.0.0
 - Configurable base length and error correction
 - Modern Material-UI interface
 - RESTful API with FastAPI
+- GenScript template compatibility
+- Support for multiple file formats (images, audio, video, text, PDF)
+- Secure API access with authentication
+- ZIP file support for both encoding and decoding
 
 ## Documentation
 
@@ -38,6 +42,9 @@ For detailed information about the project, please refer to:
 - Pydantic
 - Uvicorn
 - Cryptography (Fernet)
+- JWT Authentication
+- Python-Jose
+- Passlib
 
 ### Frontend
 - React
@@ -73,11 +80,16 @@ npm start
 ## Usage
 
 1. Open http://localhost:3000 in your browser
-2. Upload a file to encode it into DNA sequences
-3. Optionally provide a password for encryption
-4. Choose base length and error correction level
-5. Download the encoded sequences as a ZIP file
-6. Use the decode section to convert DNA sequences back to the original file
+2. Log in with your API credentials
+3. Upload a file to encode it into DNA sequences
+4. Choose output format (GenScript template compatible)
+5. Optionally provide a password for encryption
+6. Choose base length and error correction level
+7. Download the encoded sequences as a ZIP file
+8. Use the decode section to convert DNA sequences back to the original file
+   - Support for ZIP files containing multiple sequences
+   - Automatic file type detection
+   - Manual file type selection for specific formats
 
 ## API Documentation
 
@@ -107,3 +119,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - DNA encoding principles based on research in molecular computing
 - Error correction implementation using Reed-Solomon coding
 - UI components from Material-UI
+- GenScript template compatibility

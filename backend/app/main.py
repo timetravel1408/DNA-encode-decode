@@ -1,7 +1,7 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Body
+from fastapi import FastAPI, UploadFile, File, HTTPException, Body, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import base64
+from fastapi.security import OAuth2PasswordRequestForm
 from typing import Dict, Optional, List, Any
 import io
 from pydantic import BaseModel, ConfigDict
@@ -9,23 +9,30 @@ from cryptography.fernet import Fernet
 import hashlib
 import zipfile
 import struct
+from datetime import timedelta
+import mimetypes
+from .auth import (
+    Token, User, create_access_token, get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES, verify_password, get_user
+)
 
 # Define response models
 class EncodeRequest(BaseModel):
     password: Optional[str] = None
-    base_length: int = 200
-    error_correction: str = "basic"
+    base_length: int = 100
+    error_correction: int = 1
+    template_format: str = "genscript"  # New field for template format
 
 class EncodeResponse(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     sequences: List[str]
-    metadata: Dict[str, Any]
-    zip_file: str
+    metadata: dict
+    template_format: str
 
 class DecodeRequest(BaseModel):
-    sequences: List[str]
     password: Optional[str] = None
-    error_correction: str = "basic"
+    file_type: Optional[str] = None  # New field for file type
+    template_format: str = "genscript"  # New field for template format
 
 class DecodeResponse(BaseModel):
     decoded_data: str
@@ -91,7 +98,7 @@ def dna_to_bytes(dna: str) -> bytes:
     return bytes(data)
 
 app = FastAPI(
-    title="DNA Data Encoder/Decoder API",
+    title="DNA Encoder/Decoder API",
     description="""
     This API provides endpoints for encoding files into DNA sequences and decoding DNA sequences back into files.
     
@@ -108,7 +115,7 @@ app = FastAPI(
     4. Use the `/decode` endpoint to convert DNA sequences back to the original file
     5. If the file was encrypted, provide the same password for decryption
     """,
-    version="1.0.0",
+    version="1.0.2",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -116,11 +123,27 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Authentication endpoints
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = get_user(form_data.username)
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get(
     "/health",
@@ -129,7 +152,7 @@ app.add_middleware(
     description="Check if the API is running and healthy."
 )
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": "1.0.2"}
 
 @app.post(
     "/encode",
@@ -139,22 +162,20 @@ async def health_check():
 )
 async def encode_file(
     file: UploadFile = File(..., description="The file to encode into DNA sequence"),
-    password: Optional[str] = Body(None, description="Optional password for encryption"),
-    base_length: int = Body(200, description="Length of each DNA sequence"),
-    error_correction: str = Body("basic", description="Error correction level")
+    request: EncodeRequest = None,
+    current_user: User = Depends(get_current_user)
 ) -> EncodeResponse:
     try:
-        # Read file content
         content = await file.read()
         
         # Encrypt content if password is provided
         is_encrypted = False
-        if password:
-            content = encrypt_data(content, password)
+        if request.password:
+            content = encrypt_data(content, request.password)
             is_encrypted = True
         
         # Split content into chunks
-        chunks = split_into_chunks(content, base_length - 6)  # Reserve 6 bytes for index and error correction
+        chunks = split_into_chunks(content, request.base_length - 6)  # Reserve 6 bytes for index and error correction
         
         # Convert chunks to DNA sequences
         sequences = []
@@ -165,10 +186,12 @@ async def encode_file(
         
         # Create metadata
         metadata = {
-            "original_size": len(content),
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "size": len(content),
             "sequence_count": len(sequences),
-            "base_length": base_length,
-            "error_correction": error_correction,
+            "base_length": request.base_length,
+            "error_correction": request.error_correction,
             "is_encrypted": is_encrypted
         }
         
@@ -184,6 +207,7 @@ async def encode_file(
         return EncodeResponse(
             sequences=sequences,
             metadata=metadata,
+            template_format=request.template_format,
             zip_file=zip_base64
         )
     except Exception as e:
@@ -195,16 +219,28 @@ async def encode_file(
     summary="Decode DNA to File",
     description="Convert DNA sequences back into the original file data with optional password decryption."
 )
-async def decode_data(
-    data: DecodeRequest = Body(..., description="The DNA sequences to decode and optional password")
+async def decode_file(
+    file: UploadFile = File(..., description="The DNA sequences to decode and optional password"),
+    request: DecodeRequest = None,
+    current_user: User = Depends(get_current_user)
 ) -> DecodeResponse:
     try:
-        if not data.sequences:
-            raise HTTPException(status_code=400, detail="No sequences provided")
+        content = await file.read()
         
+        # Handle ZIP files
+        if file.filename.endswith('.zip'):
+            with zipfile.ZipFile(io.BytesIO(content)) as zip_file:
+                # Process multiple sequences from ZIP
+                sequences = []
+                for zip_info in zip_file.filelist:
+                    if zip_info.filename.endswith('.txt'):
+                        sequences.append(zip_file.read(zip_info.filename).decode())
+        else:
+            sequences = [content.decode()]
+
         # Convert DNA sequences back to bytes
         chunks = []
-        for sequence in data.sequences:
+        for sequence in sequences:
             chunk = dna_to_bytes(sequence)
             if not verify_error_correction(chunk):
                 raise HTTPException(status_code=400, detail="Error correction failed")
@@ -215,15 +251,18 @@ async def decode_data(
         
         # Decrypt content if password is provided
         is_encrypted = False
-        if data.password:
+        if request.password:
             try:
-                content = decrypt_data(content, data.password)
+                content = decrypt_data(content, request.password)
                 is_encrypted = True
             except Exception as e:
                 raise HTTPException(status_code=400, detail="Invalid password or corrupted data")
         
         # Convert to base64
         decoded_content = base64.b64encode(content).decode('utf-8')
+        
+        # Determine content type
+        content_type = request.file_type or mimetypes.guess_type(file.filename)[0]
         
         return DecodeResponse(
             decoded_data=decoded_content,

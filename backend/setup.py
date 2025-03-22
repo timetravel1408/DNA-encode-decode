@@ -2,13 +2,15 @@ from setuptools import setup, find_packages
 
 setup(
     name="dna-encoder-backend",
-    version="1.0.0",
+    version="1.0.2",
     packages=find_packages(),
     install_requires=[
         "fastapi==0.115.11",
         "uvicorn==0.34.0",
         "python-multipart==0.0.20",
-        "pydantic==2.6.1"
+        "pydantic==2.6.1",
+        "python-jose[cryptography]==3.3.0",
+        "passlib[bcrypt]==1.7.4"
     ],
     author="timetravel1408",
     author_email="timetravel1408@gmail.com",
