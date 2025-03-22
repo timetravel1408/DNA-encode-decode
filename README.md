@@ -11,6 +11,22 @@ A web application that encodes files into DNA sequences and decodes them back, w
 - Modern Material-UI interface
 - RESTful API with FastAPI
 
+## Documentation
+
+For detailed information about the project, please refer to:
+
+1. [Biological Principles](docs/BIOLOGY.md)
+   - DNA structure and properties
+   - DNA synthesis constraints
+   - Data storage principles
+   - Applications and limitations
+
+2. [Technical Documentation](docs/TECHNICAL.md)
+   - System architecture
+   - Implementation details
+   - Security features
+   - Performance optimization
+
 ## Tech Stack
 
 ### Backend
@@ -66,6 +82,20 @@ The API documentation is available at:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- DNA encoding principles based on research in molecular computing
+- Error correction implementation using Reed-Solomon coding
+- UI components from Material-UI
