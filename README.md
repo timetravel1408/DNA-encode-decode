@@ -31,7 +31,7 @@ A web application that encodes files into DNA sequences and decodes them back, w
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/timetravel1408/DNA-encode-decode.git
 cd dna-encoder
 ```
 
@@ -68,4 +68,4 @@ The API documentation is available at:
 
 ## License
 
-MIT License 
+MIT License
