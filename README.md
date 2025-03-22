@@ -2,6 +2,9 @@
 
 A web application that encodes files into DNA sequences and decodes them back, with optional password encryption.
 
+## Version
+Current version: 1.0.0
+
 ## Features
 
 - File to DNA sequence encoding
