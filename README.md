@@ -90,6 +90,11 @@ The API documentation is available at:
 4. Push to the branch
 5. Create a Pull Request
 
+## Contact
+
+For questions, suggestions, or collaboration opportunities, please contact:
+- Email: timetravel1408@gmail.com
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
